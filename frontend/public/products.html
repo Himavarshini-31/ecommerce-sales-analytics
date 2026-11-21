@@ -1,0 +1,2556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>E-Commerce Sales Analytics System</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', sans-serif; background: #f0f4ff; }
+    .sidebar-scrollbar::-webkit-scrollbar { width: 4px; }
+    .sidebar-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    .nav-item { transition: all 0.2s ease; }
+    .nav-item:hover { transform: translateX(3px); }
+    .card-hover { transition: box-shadow 0.25s ease, transform 0.25s ease; }
+    .card-hover:hover { box-shadow: 0 8px 30px rgba(37,99,235,0.12); transform: translateY(-2px); }
+    .fade-in { animation: fadeIn 0.35s ease forwards; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .pulse-dot { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .bar { transition: height 0.6s cubic-bezier(.4,0,.2,1); }
+    .progress-bar { transition: width 1s cubic-bezier(.4,0,.2,1); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ── Icons (inline SVG components) ──────────────────────────────────────────
+    const Icon = ({ d, size = 20, className = "" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+        strokeLinejoin="round" className={className}>
+        {Array.isArray(d) ? d.map((p, i) => <path key={i} d={p} />) : <path d={d} />}
+      </svg>
+    );
+
+    const icons = {
+      dashboard:   "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
+      customers:   ["M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2", "M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M23 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75"],
+      products:    ["M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z", "M3 6h18", "M16 10a4 4 0 0 1-8 0"],
+      categories:  ["M4 6h16M4 12h16M4 18h7"],
+      orders:      ["M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2", "M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2", "M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"],
+      payments:    ["M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z", "M1 10h22"],
+      search:      ["M11 17a6 6 0 1 0 0-12 6 6 0 0 0 0 12z", "M21 21l-4.35-4.35"],
+      bell:        ["M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9", "M13.73 21a2 2 0 0 1-3.46 0"],
+      chevron:     "M9 18l6-6-6-6",
+      trend:       ["M22 12h-4l-3 9L9 3l-3 9H2"],
+      dollar:      ["M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"],
+      cart:        ["M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z", "M3 6h18"],
+      star:        "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+      check:       "M20 6L9 17l-5-5",
+      clock:       ["M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z", "M12 6v6l4 2"],
+      package:     ["M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z", "M3.27 6.96L12 12.01l8.73-5.05", "M12 22.08V12"],
+      arrowUp:     "M12 19V5M5 12l7-7 7 7",
+      arrowDown:   "M12 5v14M19 12l-7 7-7-7",
+      menu:        "M3 12h18M3 6h18M3 18h18",
+      x:           "M18 6L6 18M6 6l12 12",
+    };
+
+    // ── Sidebar Nav Items ──────────────────────────────────────────────────────
+    const NAV = [
+      { id: "dashboard",  label: "Dashboard",  icon: "dashboard"  },
+      { id: "customers",  label: "Customers",  icon: "customers"  },
+      { id: "products",   label: "Products",   icon: "products"   },
+      { id: "categories", label: "Categories", icon: "categories" },
+      { id: "orders",     label: "Orders",     icon: "orders"     },
+      { id: "payments",   label: "Payments",   icon: "payments"   },
+    ];
+
+    // ── Stat Card ──────────────────────────────────────────────────────────────
+    const StatCard = ({ label, value, sub, icon, color, trend }) => {
+      const colors = {
+        blue:   { bg: "bg-blue-50",   icon: "bg-blue-600",   text: "text-blue-600"   },
+        indigo: { bg: "bg-indigo-50", icon: "bg-indigo-600", text: "text-indigo-600" },
+        violet: { bg: "bg-violet-50", icon: "bg-violet-600", text: "text-violet-600" },
+        emerald:{ bg: "bg-emerald-50",icon: "bg-emerald-600",text: "text-emerald-600"},
+      };
+      const c = colors[color] || colors.blue;
+      return (
+        <div className={`bg-white rounded-2xl p-5 shadow-sm card-hover ${c.bg} bg-opacity-30 border border-white`}>
+          <div className="flex items-start justify-between mb-4">
+            <div className={`w-11 h-11 rounded-xl ${c.icon} flex items-center justify-center shadow-md`}>
+              <Icon d={icons[icon]} size={18} className="text-white" />
+            </div>
+            <span className={`text-xs font-600 px-2 py-1 rounded-full flex items-center gap-1 ${trend > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+              <Icon d={trend > 0 ? icons.arrowUp : icons.arrowDown} size={11} />
+              {Math.abs(trend)}%
+            </span>
+          </div>
+          <p className="text-2xl font-700 text-gray-800 mb-1">{value}</p>
+          <p className="text-sm text-gray-500 font-500">{label}</p>
+          <p className="text-xs text-gray-400 mt-1">{sub}</p>
+        </div>
+      );
+    };
+
+    // ── Mini Bar Chart ─────────────────────────────────────────────────────────
+    const BarChart = ({ data, color = "#2563eb" }) => {
+      const max = Math.max(...data);
+      return (
+        <div className="flex items-end gap-1 h-16">
+          {data.map((v, i) => (
+            <div key={i} className="flex-1 rounded-t-sm bar"
+              style={{ height: `${(v / max) * 100}%`, background: color, opacity: i === data.length - 1 ? 1 : 0.4 }} />
+          ))}
+        </div>
+      );
+    };
+
+    // ── Progress Bar ───────────────────────────────────────────────────────────
+    const ProgressBar = ({ pct, color = "bg-blue-600" }) => (
+      <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+        <div className={`h-full rounded-full progress-bar ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    );
+
+
+    // ── Avatar ─────────────────────────────────────────────────────────────────
+    const Avatar = ({ name = "Admin", size = 36 }) => {
+      const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+      return (
+        <div className="flex items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-600 cursor-pointer select-none shadow-md"
+          style={{ width: size, height: size, fontSize: size * 0.38 }}>
+          {initials}
+        </div>
+      );
+    };
+
+    // ── Dashboard Page ─────────────────────────────────────────────────────────
+   const Dashboard = () => {
+    const months=[
+"Jan","Feb","Mar","Apr","May","Jun",
+"Jul","Aug","Sep","Oct","Nov","Dec"
+];
+
+const [customers,setCustomers]=useState([]);
+const [products,setProducts]=useState([]);
+const [orders,setOrders]=useState([]);
+const [payments,setPayments]=useState([]);
+
+useEffect(()=>{
+
+axios.get("http://localhost:5000/customers")
+.then(res=>setCustomers(res.data))
+.catch(err=>console.log(err));
+
+axios.get("http://localhost:5000/products")
+.then(res=>setProducts(res.data))
+.catch(err=>console.log(err));
+
+axios.get("http://localhost:5000/orders")
+.then(res=>setOrders(res.data))
+.catch(err=>console.log(err));
+
+axios.get("http://localhost:5000/payments")
+.then(res=>setPayments(res.data))
+.catch(err=>console.log(err));
+
+},[]);
+
+const totalCustomers=customers.length;
+const totalProducts=products.length;
+const totalOrders=orders.length;
+
+const totalRevenue=payments.reduce(
+(sum,p)=>sum+Number(p.amount),0
+);
+
+const revenueText=
+totalRevenue>=100000
+?"₹"+(totalRevenue/100000).toFixed(2)+"L"
+:"₹"+totalRevenue.toLocaleString();
+
+const categoryCount=
+new Set(products.map(p=>p.category_id)).size;
+
+const topProducts={};
+
+orders.forEach(o=>{
+topProducts[o.product_id]=(topProducts[o.product_id]||0)+o.quantity;
+});
+
+const topProductList=Object.entries(topProducts)
+.sort((a,b)=>b[1]-a[1])
+.slice(0,5);
+
+const topProductsDisplay = topProductList.map(item => {
+
+const prod = products.find(
+p => p.product_id == item[0]
+);
+
+return {
+
+name: prod ? prod.product_name : "Unknown Product",
+
+sales: item[1],
+
+pct: Math.min(item[1] * 20,100),
+
+color: "bg-blue-600"
+
+};
+
+});
+const chartData = Array(12).fill(0);
+
+payments.forEach(p => {
+    const month = new Date(p.payment_date).getMonth(); // Jan=0
+    chartData[month] += Number(p.amount);
+});
+const recentOrders = orders
+.slice()
+.reverse()
+.slice(0,6)
+.map(o=>({
+
+id:"ORD-"+String(o.order_id).padStart(4,"0"),
+
+customer:"CUS-"+String(o.customer_id).padStart(4,"0"),
+
+product:"PROD-"+String(o.product_id).padStart(4,"0"),
+
+amount:"Qty : "+o.quantity,
+
+status:"Completed",
+
+date:new Date(o.order_date).toLocaleDateString()
+
+}));
+const statusStyles = {
+  Completed: "bg-emerald-100 text-emerald-700",
+  Pending: "bg-amber-100 text-amber-700",
+  Processing: "bg-violet-100 text-violet-700",
+  Delivered: "bg-emerald-100 text-emerald-700",
+  Shipped: "bg-blue-100 text-blue-700",
+  Cancelled: "bg-red-100 text-red-700",
+};
+      return (
+        <div className="fade-in space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-xl font-700 text-gray-800">Dashboard Overview</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Welcome back, Admin · Updated just now</p>
+          </div>
+
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <StatCard
+label="Total Revenue"
+value={revenueText}
+sub="From Payments"
+icon="dollar"
+color="blue"
+trend={10}
+/>
+
+<StatCard
+label="Total Orders"
+value={totalOrders}
+sub="Database Records"
+icon="cart"
+color="indigo"
+trend={8}
+/>
+
+<StatCard
+label="Customers"
+value={totalCustomers}
+sub="Registered"
+icon="customers"
+color="violet"
+trend={5}
+/>
+
+<StatCard
+label="Products"
+value={totalProducts}
+sub="Available"
+icon="package"
+color="emerald"
+trend={3}
+/>
+          </div>
+
+          {/* Chart + Top Products */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            {/* Revenue Chart */}
+            <div className="xl:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-sm font-600 text-gray-800">Revenue Trend</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Monthly performance · 2026–27</p>
+                </div>
+                <span className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-500">+18.4% YoY</span>
+              </div>
+              <div className="flex items-end gap-1.5 h-36 mt-2">
+                {chartData.map((v, i) => {
+                  const max = Math.max(...chartData,1);
+                  //const months = ["Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun"];
+                  const isLast = i === chartData.length - 1;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="w-full rounded-t-md bar"
+                        style={{
+                          height: `${(v / max) * 130}px`,
+                          background: isLast ? "linear-gradient(180deg,#2563eb,#818cf8)" : "#dbeafe",
+                          transition: `height ${0.3 + i * 0.05}s ease`
+                        }} />
+                      <span className="text-[9px] text-gray-400">{months[i]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top Products */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
+              <h2 className="text-sm font-600 text-gray-800 mb-1">Top Products</h2>
+              <p className="text-xs text-gray-400 mb-4">By units sold this month</p>
+              <div className="space-y-4">
+                {topProductsDisplay.map((p, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between mb-1.5">
+                      <span className="text-xs text-gray-700 font-500 truncate max-w-[140px]">{p.name}</span>
+                      <span className="text-xs text-gray-500 shrink-0">{p.sales} sold</span>
+                    </div>
+                    <ProgressBar pct={p.pct} color={p.color} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Orders Table */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+              <div>
+                <h2 className="text-sm font-600 text-gray-800">Recent Orders</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Last 6 transactions</p>
+              </div>
+              <button className="text-xs text-blue-600 font-500 hover:text-blue-700 transition-colors">View all →</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left">
+                    {["Order ID", "Customer", "Product", "Amount", "Status", "Date"].map(h => (
+                      <th key={h} className="px-5 py-3 text-xs font-600 text-gray-500 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentOrders.map((o, i) => (
+                    <tr key={i} className="border-t border-gray-50 hover:bg-blue-50/40 transition-colors cursor-pointer">
+                      <td className="px-5 py-3.5 text-xs font-600 text-blue-600">{o.id}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <Avatar name={o.customer} size={28} />
+                          <span className="text-xs text-gray-700 font-500">{o.customer}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-gray-600 max-w-[160px] truncate">{o.product}</td>
+                      <td className="px-5 py-3.5 text-xs font-600 text-gray-800">{o.amount}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-500 ${statusStyles[o.status]}`}>{o.status}</span>
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-gray-400">{o.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ── Customers Management Page ──────────────────────────────────────────────
+
+    const INIT_CUSTOMERS = [
+      { id: "CUS-0001", firstName: "Meera",    lastName: "Iyer",      email: "meera.iyer@gmail.com",      phone: "+91 98401 12345", city: "Chennai",   country: "India",          regDate: "12 Jan 2024", status: "Active"   },
+      { id: "CUS-0002", firstName: "Arjun",    lastName: "Sharma",    email: "arjun.sharma@outlook.com",  phone: "+91 97302 67890", city: "Mumbai",    country: "India",          regDate: "03 Mar 2024", status: "Active"   },
+      { id: "CUS-0003", firstName: "Priya",    lastName: "Nair",      email: "priya.nair@yahoo.com",      phone: "+91 80123 44556", city: "Bengaluru", country: "India",          regDate: "19 Feb 2024", status: "Inactive" },
+      { id: "CUS-0004", firstName: "Rahul",    lastName: "Verma",     email: "rahul.verma@icloud.com",    phone: "+91 99001 23456", city: "Delhi",     country: "India",          regDate: "08 Oct 2023", status: "Active"   },
+      { id: "CUS-0005", firstName: "Kavitha",  lastName: "Reddy",     email: "kavitha.reddy@gmail.com",   phone: "+91 76543 98765", city: "Hyderabad", country: "India",          regDate: "22 Apr 2024", status: "Active"   },
+      { id: "CUS-0006", firstName: "Suresh",   lastName: "Pillai",    email: "suresh.pillai@hotmail.com", phone: "+91 94400 11223", city: "Kochi",     country: "India",          regDate: "15 May 2024", status: "Suspended"},
+      { id: "CUS-0007", firstName: "Ananya",   lastName: "Ghosh",     email: "ananya.ghosh@gmail.com",    phone: "+91 81290 55678", city: "Kolkata",   country: "India",          regDate: "30 Nov 2023", status: "Active"   },
+      { id: "CUS-0008", firstName: "Vikram",   lastName: "Singh",     email: "vikram.singh@proton.me",    phone: "+91 70011 99887", city: "Pune",      country: "India",          regDate: "05 Jan 2024", status: "Active"   },
+      { id: "CUS-0009", firstName: "Lakshmi",  lastName: "Krishnan",  email: "lakshmi.k@gmail.com",       phone: "+91 93345 77654", city: "Coimbatore","country": "India",        regDate: "17 Jun 2024", status: "Inactive" },
+      { id: "CUS-0010", firstName: "Mohammed", lastName: "Farouk",    email: "m.farouk@outlook.com",      phone: "+91 88765 43210", city: "Hyderabad", country: "India",          regDate: "09 Jun 2024", status: "Active"   },
+    ];
+
+    const statusBadge = s => ({
+      Active:    "bg-emerald-100 text-emerald-700",
+      Inactive:  "bg-gray-100 text-gray-500",
+      Suspended: "bg-red-100 text-red-600",
+    }[s] || "bg-gray-100 text-gray-500");
+
+    // ── Add Customer Modal ─────────────────────────────────────────────────────
+    const EMPTY_FORM = { firstName:"", lastName:"", email:"", phone:"", city:"", country:"" };
+
+    const AddCustomerModal = ({ onClose, onSave }) => {
+      const [form, setForm] = useState(EMPTY_FORM);
+      const [errors, setErrors] = useState({});
+
+      const field = (key, label, type = "text", placeholder = "") => {
+        const hasErr = !!errors[key];
+        return (
+          <div>
+            <label className="block text-xs font-600 text-gray-600 mb-1.5">{label}</label>
+            <input
+              type={type}
+              value={form[key]}
+              placeholder={placeholder}
+              onChange={e => { setForm(f => ({...f, [key]: e.target.value})); setErrors(er => ({...er, [key]: ""})); }}
+              className={`w-full px-3.5 py-2.5 text-xs rounded-xl border transition-all outline-none
+                focus:ring-2 focus:ring-blue-200 focus:border-blue-400
+                ${hasErr ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50 hover:border-blue-300"}`}
+            />
+            {hasErr && <p className="text-[10px] text-red-500 mt-1">{errors[key]}</p>}
+          </div>
+        );
+      };
+
+      const validate = () => {
+        const e = {};
+        if (!form.firstName.trim()) e.firstName = "First name is required";
+        if (!form.lastName.trim())  e.lastName  = "Last name is required";
+        if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = "Valid email is required";
+        if (!form.phone.trim())     e.phone     = "Phone is required";
+        if (!form.city.trim())      e.city      = "City is required";
+        if (!form.country.trim())   e.country   = "Country is required";
+        return e;
+      };
+
+      const handleSave = () => {
+        const e = validate();
+        if (Object.keys(e).length) { setErrors(e); return; }
+        onSave(form);
+      };
+
+      // Trap scroll on mount 
+      /*React.useEffect(() => {
+        document.body.style.overflow = "hidden";
+        return () => { document.body.style.overflow = ""; };
+      }, []);*/
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:"rgba(15,23,42,0.45)", backdropFilter:"blur(4px)"}}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg fade-in overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                  <Icon d={icons.customers} size={16} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-700 text-gray-800">Add New Customer</h2>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Fill in the details below</p>
+                </div>
+              </div>
+              <button onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <Icon d={icons.x} size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {field("firstName", "First Name",  "text", "e.g. Meera")}
+                {field("lastName",  "Last Name",   "text", "e.g. Iyer")}
+              </div>
+              {field("email", "Email Address", "email", "e.g. meera@gmail.com")}
+              {field("phone", "Phone Number",  "tel",   "e.g. +91 98401 12345")}
+              <div className="grid grid-cols-2 gap-4">
+                {field("city",    "City",    "text", "e.g. Chennai")}
+                {field("country", "Country", "text", "e.g. India")}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={onClose}
+                className="px-4 py-2.5 text-xs font-600 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSave}
+                className="px-5 py-2.5 text-xs font-600 text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm flex items-center gap-2">
+                <Icon d={icons.check} size={13} className="text-white" />
+                Save Customer
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ── Customers Page ─────────────────────────────────────────────────────────
+    const Customers = () => {
+      const [customers, setCustomers] = useState([]);
+      const [search, setSearch]       = useState("");
+      const [filter, setFilter]       = useState("All");
+      const [showModal, setShowModal] = useState(false);
+      const [filterOpen, setFilterOpen] = useState(false);
+
+      useEffect(() => {
+
+    axios.get("http://localhost:5000/customers")
+
+        .then((response) => {
+
+            const data = response.data.map(c => ({
+                id: "CUS-" + String(c.customer_id).padStart(4, "0"),
+                firstName: c.first_name,
+                lastName: c.last_name,
+                email: c.email,
+                phone: c.phone,
+                city: c.city,
+                country: c.country,
+                regDate: c.registration_date
+    ? new Date(c.registration_date).toLocaleDateString("en-GB")
+    : "",
+                status: "Active"
+            }));
+
+            setCustomers(data);
+
+        })
+
+        .catch((error) => {
+
+            console.log(error);
+
+        });
+
+}, []);
+
+      const FILTERS = ["All", "Active", "Inactive", "Suspended"];
+
+     const filtered = customers.filter(c => {
+
+    const q = search.toLowerCase();
+
+    const matchSearch =
+        !q ||
+        (c.firstName || "").toLowerCase().includes(q) ||
+        (c.lastName || "").toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q) ||
+        (c.city || "").toLowerCase().includes(q) ||
+        (c.id || "").toLowerCase().includes(q);
+
+    const matchFilter =
+        filter === "All" || c.status === filter;
+
+    return matchSearch && matchFilter;
+
+});
+
+      const total   = customers.length;
+      const active  = customers.filter(c => c.status === "Active").length;
+      const newThis = customers.filter(c => c.regDate.includes("2024") && parseInt(c.regDate) >= 1).length;
+
+     const handleAdd = (form) => {
+        console.log(form.registrationDate); 
+    axios.post("http://localhost:5000/customers", {
+        first_name: form.firstName,
+        last_name: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        city: form.city,
+        country: form.country,
+        registration_date: new Date().toISOString().split("T")[0]
+    })
+
+    .then((res) => {
+
+    axios.get("http://localhost:5000/customers")
+    .then((response) => {
+
+        const data = response.data.map(c => ({
+            id: "CUS-" + String(c.customer_id).padStart(4, "0"),
+            firstName: c.first_name,
+            lastName: c.last_name,
+            email: c.email,
+            phone: c.phone,
+            city: c.city,
+            country: c.country,
+            regDate: c.registration_date
+    ? new Date(c.registration_date).toLocaleDateString("en-GB")
+    : "",
+            status: "Active"
+        }));
+
+        setCustomers(data);
+        setShowModal(false);
+
+    });
+
+})
+
+    .catch((err) => {
+        console.log(err);
+        alert("Customer Insert Failed");
+    });
+
+};
+
+      return (
+        <div className="fade-in space-y-6">
+          {/* ── Page Header ── */}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-xl font-700 text-gray-800">Customers Management</h1>
+              <p className="text-sm text-gray-500 mt-0.5">Manage customer registrations and customer information.</p>
+            </div>
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white text-xs font-600 px-4 py-2.5 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add Customer
+            </button>
+          </div>
+
+          {/* ── Stat Cards ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Total */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-blue-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.customers} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />6.2%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{total.toLocaleString()}</p>
+              <p className="text-sm text-gray-500 font-500">Total Customers</p>
+              <p className="text-xs text-gray-400 mt-1">All time registrations</p>
+            </div>
+            {/* New */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-indigo-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.arrowUp} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />14.5%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{newThis}</p>
+              <p className="text-sm text-gray-500 font-500">New Customers</p>
+              <p className="text-xs text-gray-400 mt-1">Registered in 2024</p>
+            </div>
+            {/* Active */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-emerald-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-emerald-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.check} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />3.8%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{active}</p>
+              <p className="text-sm text-gray-500 font-500">Active Customers</p>
+              <p className="text-xs text-gray-400 mt-1">{Math.round(active/total*100)}% of total base</p>
+            </div>
+          </div>
+
+          {/* ── Toolbar ── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-visible">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50 flex-wrap gap-y-3">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[200px]">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Icon d={icons.search} size={14} className="text-gray-400" />
+                </div>
+                <input
+                  type="text" value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by name, email, city or ID…"
+                  className="w-full pl-9 pr-4 py-2.5 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all"
+                />
+              </div>
+
+              {/* Filter dropdown */}
+              <div className="relative">
+                <button onClick={() => setFilterOpen(o => !o)}
+                  className={`flex items-center gap-2 text-xs font-600 px-4 py-2.5 rounded-xl border transition-all
+                    ${filter !== "All" ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50"}`}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+                  {filter === "All" ? "Filter" : filter}
+                  <Icon d={icons.chevron} size={12} className="rotate-90" />
+                </button>
+                {filterOpen && (
+                  <div className="absolute right-0 top-11 bg-white rounded-xl shadow-2xl border border-gray-100 z-20 overflow-hidden fade-in min-w-[130px]">
+                    {FILTERS.map(f => (
+                      <button key={f} onClick={() => { setFilter(f); setFilterOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-xs font-500 transition-colors
+                          ${filter === f ? "bg-blue-50 text-blue-600 font-600" : "text-gray-600 hover:bg-gray-50"}`}>
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Count badge */}
+              <span className="text-xs text-gray-400 shrink-0">
+                {filtered.length} {filtered.length === 1 ? "record" : "records"}
+              </span>
+            </div>
+
+            {/* ── Table ── */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    {["Customer ID","First Name","Last Name","Email","Phone","City","Country","Registered","Status"].map(h => (
+                      <th key={h} className="px-5 py-3 text-left text-xs font-600 text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-5 py-12 text-center text-xs text-gray-400">
+                        No customers match your search.
+                      </td>
+                    </tr>
+                  ) : filtered.map((c, i) => (
+                    <tr key={c.id}
+                      className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors cursor-pointer ${i % 2 === 0 ? "" : "bg-gray-50/30"}`}>
+                      <td className="px-5 py-3.5 text-xs font-600 text-blue-600 whitespace-nowrap">{c.id}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar name={`${c.firstName} ${c.lastName}`} size={28} />
+                          <span className="text-xs font-600 text-gray-800 whitespace-nowrap">{c.firstName}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-gray-700 whitespace-nowrap">{c.lastName}</td>
+                      <td className="px-5 py-3.5 text-xs text-gray-500 whitespace-nowrap">{c.email}</td>
+                      <td className="px-5 py-3.5 text-xs text-gray-500 whitespace-nowrap">{c.phone}</td>
+                      <td className="px-5 py-3.5 text-xs text-gray-600 whitespace-nowrap">{c.city}</td>
+                      <td className="px-5 py-3.5 text-xs text-gray-600 whitespace-nowrap">{c.country}</td>
+                      <td className="px-5 py-3.5 text-xs text-gray-400 whitespace-nowrap">{c.regDate}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-500 ${statusBadge(c.status)}`}>{c.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table footer */}
+            <div className="px-5 py-3 border-t border-gray-50 flex items-center justify-between">
+              <p className="text-xs text-gray-400">Showing {filtered.length} of {customers.length} customers</p>
+              <div className="flex gap-1">
+                {[1,2,3].map(n => (
+                  <button key={n} className={`w-7 h-7 rounded-lg text-xs font-600 transition-colors
+                    ${n === 1 ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-100"}`}>{n}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Modal ── */}
+          {showModal && <AddCustomerModal onClose={() => setShowModal(false)} onSave={handleAdd} />}
+        </div>
+      );
+    };
+
+    // ── Products Page ──────────────────────────────────────────────────────────
+
+    const PROD_CATEGORIES = [ "Electronics","Clothing","Books","Home Appliances","Sports","Furniture"];
+
+    const fmt = n => "₹" + n.toLocaleString("en-IN");
+
+    const getStatus = stock => stock === 0 ? "Out of Stock" : stock <= 10 ? "Low Stock" : "In Stock";
+    const statusBadgeProd = s => ({
+      "In Stock":     "bg-emerald-100 text-emerald-700",
+      "Low Stock":    "bg-amber-100 text-amber-700",
+      "Out of Stock": "bg-red-100 text-red-600",
+    }[s]);
+    const statusDot = s => ({
+      "In Stock":     "bg-emerald-500",
+      "Low Stock":    "bg-amber-400",
+      "Out of Stock": "bg-red-500",
+    }[s]);
+
+    // ── Add Product Modal ──────────────────────────────────────────────────────
+    const AddProductModal = ({ onClose, onSave, nextId }) => {
+      const [form, setForm] = useState({ product_name: "", category_id: "", price: "", stock_quantity: "" });
+      const [errors, setErrors] = useState({});
+
+      React.useEffect(() => {
+        document.body.style.overflow = "hidden";
+        return () => { document.body.style.overflow = ""; };
+      }, []);
+
+      const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: "" })); };
+
+      const validate = () => {
+        const e = {};
+        if (!form.product_name.trim())          e.product_name  = "Product name is required";
+        if (!form.category_id)                  e.category_id = "Category ID is required";
+        if (!form.price || +form.price <= 0) e.price = "Enter a valid price";
+        if (form.stock_quantity === "" || +form.stock_quantity < 0) e.stock_quantity = "Enter a valid stock quantity";
+        return e;
+      };
+
+      const handleSave = () => {
+        const e = validate();
+        if (Object.keys(e).length) { setErrors(e); return; }
+       onSave({product_name: form.product_name,category_id: Number(form.category_id),
+        price: Number(form.price),stock_quantity: Number(form.stock_quantity)});
+      };
+
+      const Field = ({ label, k, type = "text", placeholder }) => (
+        <div>
+          <label className="block text-xs font-600 text-gray-600 mb-1.5">{label}</label>
+          <input
+            autoFocus={k === "product_name"}
+            type={type}
+            value={form[k]}
+            placeholder={placeholder}
+            onChange={e => set(k, e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSave()}
+            className={`w-full px-3.5 py-2.5 text-xs rounded-xl border transition-all outline-none
+              focus:ring-2 focus:ring-blue-200 focus:border-blue-400
+              ${errors[k] ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50 hover:border-blue-300"}`}
+          />
+          {errors[k] && <p className="text-[10px] text-red-500 mt-1">{errors[k]}</p>}
+        </div>
+      );
+
+      return (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+    style={{
+      background: "rgba(15,23,42,0.45)",
+      backdropFilter: "blur(4px)"
+    }}
+  >
+    <div
+      className="bg-white rounded-2xl shadow-2xl w-full max-w-md fade-in overflow-hidden"
+      style={{ marginTop: "20px" }}
+    >
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                  <Icon d={icons.package} size={16} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-700 text-gray-800">Add New Product</h2>
+                  <p className="text-[10px] text-gray-400 mt-0.5">ID: {nextId}</p>
+                </div>
+              </div>
+              <button onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <Icon d={icons.x} size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
+              <Field label="Product Name" k="product_name" placeholder="Enter Product Name&quot;" />
+
+              <div>
+  <label className="block text-xs font-600 text-gray-600 mb-1.5">
+    Category ID
+  </label>
+
+  <input
+    type="number"
+    value={form.category_id}
+    placeholder="Enter Category ID"
+    onChange={e => set("category_id", e.target.value)}
+    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 hover:border-blue-300 transition-all"
+  />
+
+  {errors.category_id &&
+    <p className="text-[10px] text-red-500 mt-1">
+      {errors.category_id}
+    </p>
+  }
+</div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Price (₹)" k="price" type="number" placeholder="Enter Price" />
+                <Field label="Stock Quantity" k="stock_quantity" type="number" placeholder="Enter Stock Quantity" />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={onClose}
+                className="px-4 py-2.5 text-xs font-600 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSave}
+                className="px-5 py-2.5 text-xs font-600 text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm flex items-center gap-2">
+                <Icon d={icons.check} size={13} className="text-white" />
+                Save Product
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ── Products Page Component ────────────────────────────────────────────────
+    const Products = () => {
+      const [products, setProducts]     = useState([]);
+      const [search, setSearch]         = useState("");
+      const [catFilter, setCatFilter]   = useState("All");
+      const [catOpen, setCatOpen]       = useState(false);
+      const [showModal, setShowModal]   = useState(false);
+
+      useEffect(() => {
+    axios.get("http://localhost:5000/products")
+        .then(res => {
+            setProducts(
+    res.data.map(p => ({
+        id: "PROD-" + String(p.product_id).padStart(4, "0"),
+        name: p.product_name,
+        category: String(p.category_id),
+        price: Number(p.price),
+        stock: p.stock_quantity,
+        rating: 4.5,
+        status: p.stock_quantity > 0 ? "In Stock" : "Out of Stock"
+    }))
+);
+        })
+        .catch(err => console.log(err));
+}, []);
+
+      const filtered = products.filter(p => {
+        const q = search.toLowerCase();
+        const matchSearch = p.id.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
+        const matchCat = catFilter === "All" || p.category === catFilter;
+        return matchSearch && matchCat;
+      });
+
+      const totalProducts   = products.length;
+      const lowStock        = products.filter(p => p.stock > 0 && p.stock <= 10).length;
+      const categories      = [...new Set(products.map(p => p.category))].length;
+      const inventoryValue  = products.reduce((s, p) => s + p.price * p.stock, 0);
+
+      const handleAdd = ({ product_name, category_id, price, stock_quantity }) => {
+
+    axios.post("http://localhost:5000/products", {
+        product_name,
+        category_id,
+        price,
+        stock_quantity
+    })
+    .then(res => {
+
+        const next = {
+            id: "PROD-" + String(res.data.product_id || products.length + 1).padStart(4, "0"),
+            name: product_name,
+            category: String(category_id),
+            price: Number(price),
+            stock: Number(stock_quantity),
+            rating: 4.5,
+            status: Number(stock_quantity) > 0 ? "In Stock" : "Out of Stock"
+        };
+
+        setProducts(ps => [next, ...ps]);
+        setShowModal(false);
+
+    })
+    .catch(err => {
+        console.log(err);
+        alert("Error adding product");
+    });
+
+};
+
+      const nextId = `PRD-${String(products.length + 1).padStart(3, "0")}`;
+
+      return (
+        <div className="fade-in space-y-6">
+
+          {/* ── Page Header ── */}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-xl font-700 text-gray-800">Products</h1>
+              <p className="text-sm text-gray-500 mt-0.5">Manage products and inventory.</p>
+            </div>
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white text-xs font-600 px-4 py-2.5 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add Product
+            </button>
+          </div>
+
+          {/* ── Stat Cards ── */}
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            {/* Total Products */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-blue-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.package} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />8.4%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{totalProducts.toLocaleString()}</p>
+              <p className="text-sm text-gray-500 font-500">Total Products</p>
+              <p className="text-xs text-gray-400 mt-1">Active SKUs in catalog</p>
+            </div>
+
+            {/* Low Stock */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-amber-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center shadow-md">
+                  <Icon d={icons.trend} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-red-100 text-red-600 flex items-center gap-1">
+                  <Icon d={icons.arrowDown} size={11} />2.1%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{lowStock}</p>
+              <p className="text-sm text-gray-500 font-500">Low Stock Products</p>
+              <p className="text-xs text-gray-400 mt-1">Need restocking soon</p>
+            </div>
+
+            {/* Categories */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-indigo-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.categories} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />3.0%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{categories}</p>
+              <p className="text-sm text-gray-500 font-500">Categories</p>
+              <p className="text-xs text-gray-400 mt-1">Active product groups</p>
+            </div>
+
+            {/* Inventory Value */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-emerald-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-emerald-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.dollar} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />11.2%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">
+                {inventoryValue >= 1e7
+                  ? "₹" + (inventoryValue / 1e7).toFixed(2) + "Cr"
+                  : inventoryValue >= 1e5
+                  ? "₹" + (inventoryValue / 1e5).toFixed(1) + "L"
+                  : fmt(inventoryValue)}
+              </p>
+              <p className="text-sm text-gray-500 font-500">Total Inventory Value</p>
+              <p className="text-xs text-gray-400 mt-1">Stock × unit price</p>
+            </div>
+          </div>
+
+          {/* ── Table Card ── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-visible">
+
+            {/* Toolbar */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50 flex-wrap gap-y-3">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[200px]">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Icon d={icons.search} size={14} className="text-gray-400" />
+                </div>
+                <input
+                  type="text" value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by ID, name or category…"
+                  className="w-full pl-9 pr-4 py-2.5 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all"
+                />
+              </div>
+
+              {/* Category filter */}
+              <div className="relative">
+                <button onClick={() => setCatOpen(o => !o)}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-600 rounded-xl border transition-all whitespace-nowrap
+                    ${catFilter !== "All" ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50"}`}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+                  {catFilter === "All" ? "All Categories" : catFilter}
+                  <Icon d={icons.chevron} size={12} className={`transition-transform ${catOpen ? "rotate-90" : ""} ${catFilter !== "All" ? "opacity-80" : "text-gray-400"}`} />
+                </button>
+                {catOpen && (
+                  <div className="absolute right-0 top-11 bg-white rounded-xl shadow-2xl border border-gray-100 z-20 overflow-hidden fade-in min-w-[150px]">
+                    {PROD_CATEGORIES.map(c => (
+                      <button key={c} onClick={() => { setCatFilter(c); setCatOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-xs font-500 transition-colors
+                          ${catFilter === c ? "bg-blue-50 text-blue-600 font-600" : "text-gray-600 hover:bg-gray-50"}`}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <span className="text-xs text-gray-400 shrink-0">
+                {filtered.length} {filtered.length === 1 ? "product" : "products"}
+              </span>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left">
+                    {["Product ID", "Product Name", "Category", "Price", "Stock Qty", "Status"].map(h => (
+                      <th key={h} className="px-5 py-3 text-xs font-600 text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-14 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center">
+                            <Icon d={icons.package} size={22} className="text-gray-300" />
+                          </div>
+                          <p className="text-xs text-gray-400 font-500">No products match your search</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filtered.map((p, i) => {
+                    const status = getStatus(p.stock);
+                    return (
+                      <tr key={p.id}
+                        className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors cursor-pointer group ${i % 2 !== 0 ? "bg-gray-50/30" : ""}`}
+                        style={{ animation: `fadeIn 0.2s ease ${i * 0.03}s both` }}>
+
+                        {/* Product ID */}
+                        <td className="px-5 py-3.5 text-xs font-600 text-blue-600 whitespace-nowrap">{p.id}</td>
+
+                        {/* Product Name */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center shrink-0 group-hover:from-blue-100 group-hover:to-indigo-200 transition-colors">
+                              <Icon d={icons.package} size={13} className="text-blue-600" />
+                            </div>
+                            <span className="text-xs font-600 text-gray-800 whitespace-nowrap">{p.name}</span>
+                          </div>
+                        </td>
+
+                        {/* Category */}
+                        <td className="px-5 py-3.5">
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-500 whitespace-nowrap">{p.category}</span>
+                        </td>
+
+                        {/* Price */}
+                        <td className="px-5 py-3.5 text-xs font-700 text-gray-800 whitespace-nowrap">{fmt(p.price)}</td>
+
+                        {/* Stock */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-600 ${p.stock === 0 ? "text-red-500" : p.stock <= 10 ? "text-amber-600" : "text-gray-700"}`}>
+                              {p.stock.toLocaleString()}
+                            </span>
+                            {p.stock > 0 && p.stock <= 10 && (
+                              <span className="text-[9px] text-amber-500 font-500">low</span>
+                            )}
+                          </div>
+                        </td>
+
+
+                        {/* Status */}
+                        <td className="px-5 py-3.5">
+                          <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-500 whitespace-nowrap ${statusBadgeProd(status)}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot(status)}`} />
+                            {status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table Footer */}
+            <div className="px-5 py-3 border-t border-gray-50 flex items-center justify-between flex-wrap gap-2">
+              <p className="text-xs text-gray-400">
+                Showing {filtered.length} of {products.length} products
+              </p>
+              <div className="flex gap-1">
+                {[1, 2, 3].map(n => (
+                  <button key={n} className={`w-7 h-7 rounded-lg text-xs font-600 transition-colors
+                    ${n === 1 ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-100"}`}>{n}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Modal ── */}
+          {showModal && (
+            <AddProductModal
+              onClose={() => setShowModal(false)}
+              onSave={handleAdd}
+              nextId={nextId}
+            />
+          )}
+        </div>
+      );
+    };
+
+    // ── Categories Management Page ─────────────────────────────────────────────
+
+    // pastel icon bg per row, cycling
+    const CAT_COLORS = [
+      { bg: "bg-blue-50",   icon: "bg-blue-600"   },
+      { bg: "bg-indigo-50", icon: "bg-indigo-600" },
+      { bg: "bg-violet-50", icon: "bg-violet-600" },
+      { bg: "bg-cyan-50",   icon: "bg-cyan-600"   },
+      { bg: "bg-emerald-50",icon: "bg-emerald-600"},
+      { bg: "bg-amber-50",  icon: "bg-amber-500"  },
+      { bg: "bg-rose-50",   icon: "bg-rose-500"   },
+      { bg: "bg-teal-50",   icon: "bg-teal-600"   },
+    ];
+
+    // ── Add Category Modal ─────────────────────────────────────────────────────
+    const AddCategoryModal = ({ onClose, onSave }) => {
+      const [name, setName]   = useState("");
+      const [error, setError] = useState("");
+
+      React.useEffect(() => {
+        document.body.style.overflow = "hidden";
+        return () => { document.body.style.overflow = ""; };
+      }, []);
+
+      const handleSave = () => {
+        if (!name.trim()) { setError("Category name is required"); return; }
+        onSave(name.trim());
+      };
+
+      return (
+        <div
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+    style={{
+      background: "rgba(15,23,42,0.45)",
+      backdropFilter: "blur(4px)"
+    }}
+  >
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md fade-in overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                  <Icon d={icons.categories} size={16} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-700 text-gray-800">Add New Category</h2>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Enter a name for the new category</p>
+                </div>
+              </div>
+              <button onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <Icon d={icons.x} size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-6">
+              <label className="block text-xs font-600 text-gray-600 mb-1.5">Category Name</label>
+              <input
+                autoFocus
+                type="text"
+                value={name}
+                placeholder="Enter Category Name"
+                onChange={e => { setName(e.target.value); setError(""); }}
+                onKeyDown={e => e.key === "Enter" && handleSave()}
+                className={`w-full px-3.5 py-2.5 text-xs rounded-xl border transition-all outline-none
+                  focus:ring-2 focus:ring-blue-200 focus:border-blue-400
+                  ${error ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50 hover:border-blue-300"}`}
+              />
+              {error && <p className="text-[10px] text-red-500 mt-1.5">{error}</p>}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={onClose}
+                className="px-4 py-2.5 text-xs font-600 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSave}
+                className="px-5 py-2.5 text-xs font-600 text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm flex items-center gap-2">
+                <Icon d={icons.check} size={13} className="text-white" />
+                Save Category
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ── Categories Page ────────────────────────────────────────────────────────
+    const Categories = () => {
+      const [categories, setCategories] = useState([]);
+      const [search, setSearch]         = useState("");
+      const [showModal, setShowModal]   = useState(false);
+
+      useEffect(() => {
+    axios.get("http://localhost:5000/categories")
+        .then(res => {
+           setCategories(
+    res.data.map(c => ({
+        id: "CAT-" + String(c.category_id).padStart(4, "0"),
+        name: c.category_name,
+        products: 0,
+        revenue: "₹0"
+    }))
+);
+        })
+        .catch(err => console.log(err));
+}, []);
+
+      const filtered = categories.filter(c =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.id.toLowerCase().includes(search.toLowerCase())
+      );
+
+      const totalProducts = categories.reduce((s, c) => s + c.products, 0);
+
+     const handleAdd = (name) => {
+
+  axios.post("http://localhost:5000/categories", {
+    category_name: name
+  })
+  .then(res => {
+
+    const next = {
+      id: "CAT-" + String(res.data.category_id).padStart(4, "0"),
+      name: name,
+      products: 0,
+      revenue: "₹0",
+    };
+
+    setCategories(cs => [next, ...cs]);
+    setShowModal(false);
+
+  })
+  .catch(err => {
+    console.log(err);
+    alert("Error adding category");
+  });
+
+};
+      return (
+        <div className="fade-in space-y-6">
+
+          {/* ── Page Header ── */}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-xl font-700 text-gray-800">Categories</h1>
+              <p className="text-sm text-gray-500 mt-0.5">Manage product categories</p>
+            </div>
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white text-xs font-600 px-4 py-2.5 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add Category
+            </button>
+          </div>
+
+          {/* ── Stat Cards ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Total Categories */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-blue-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.categories} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />4.2%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{categories.length}</p>
+              <p className="text-sm text-gray-500 font-500">Total Categories</p>
+              <p className="text-xs text-gray-400 mt-1">Active product categories</p>
+            </div>
+
+            {/* Total Products */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-indigo-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.package} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />9.7%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{totalProducts.toLocaleString()}</p>
+              <p className="text-sm text-gray-500 font-500">Total Products</p>
+              <p className="text-xs text-gray-400 mt-1">Across all categories</p>
+            </div>
+          </div>
+
+          {/* ── Search + Table ── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+
+            {/* Toolbar */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50 flex-wrap gap-y-3">
+              <div className="relative flex-1 min-w-[200px]">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Icon d={icons.search} size={14} className="text-gray-400" />
+                </div>
+                <input
+                  type="text" value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by category name or ID…"
+                  className="w-full pl-9 pr-4 py-2.5 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all"
+                />
+              </div>
+              <span className="text-xs text-gray-400 shrink-0">
+                {filtered.length} {filtered.length === 1 ? "category" : "categories"}
+              </span>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    {["Category ID", "Category Name"].map(h => (
+                      <th key={h} className="px-5 py-3 text-left text-xs font-600 text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="px-5 py-12 text-center text-xs text-gray-400">
+                        No categories match your search.
+                      </td>
+                    </tr>
+                  ) : filtered.map((cat, i) => {
+                    const c = CAT_COLORS[i % CAT_COLORS.length];
+                    return (
+                      <tr key={cat.id}
+                        className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-gray-50/30" : ""}`}>
+
+                        {/* ID */}
+                        <td className="px-5 py-3.5 text-xs font-600 text-blue-600 whitespace-nowrap">{cat.id}</td>
+
+                        {/* Name with icon chip */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg ${c.icon} flex items-center justify-center shrink-0`}>
+                              <Icon d={icons.categories} size={14} className="text-white" />
+                            </div>
+                            <span className="text-xs font-600 text-gray-800 whitespace-nowrap">{cat.name}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table footer */}
+            <div className="px-5 py-3 border-t border-gray-50 flex items-center justify-between">
+              <p className="text-xs text-gray-400">Showing {filtered.length} of {categories.length} categories</p>
+              <div className="flex gap-1">
+                {[1, 2].map(n => (
+                  <button key={n} className={`w-7 h-7 rounded-lg text-xs font-600 transition-colors
+                    ${n === 1 ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-100"}`}>{n}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Modal ── */}
+          {showModal && <AddCategoryModal onClose={() => setShowModal(false)} onSave={handleAdd} />}
+        </div>
+      );
+    };
+
+    // ── Orders Management Page ─────────────────────────────────────────────────
+
+    const ORDER_STATUS_STYLES = {
+      Completed:  { badge: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
+      Pending:    { badge: "bg-amber-100 text-amber-700",     dot: "bg-amber-500"   },
+      Cancelled:  { badge: "bg-red-100 text-red-600",         dot: "bg-red-500"     },
+      Processing: { badge: "bg-blue-100 text-blue-700",       dot: "bg-blue-500"    },
+    };
+
+    const AddOrderModal = ({ onClose, onSave, nextId }) => {
+      const [form, setForm] = useState({ customer:"", product:"", qty:"1"});
+      const [errors, setErrors] = useState({});
+      const [customers, setCustomers] = useState([]);
+      const [products, setProducts] = useState([]);
+
+      const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => { const n={...e}; delete n[k]; return n; }); };
+
+      const validate = () => {
+        const e = {};
+        if (!form.customer.trim()) e.customer = "Customer name is required";
+        if (!form.product.trim())  e.product  = "Product name is required";
+        if (!form.qty || isNaN(form.qty) || +form.qty < 1) e.qty = "Valid quantity required";
+        return e;
+      };
+
+      const handleSave = () => {
+        const e = validate();
+        if (Object.keys(e).length) { setErrors(e); return; }
+        onSave(form);
+      };
+
+      useEffect(() => {
+
+    axios.get("http://localhost:5000/customers")
+        .then(res => setCustomers(res.data));
+
+    axios.get("http://localhost:5000/products")
+        .then(res => setProducts(res.data));
+
+}, []);
+
+      /*React.useEffect(() => {
+        document.body.style.overflow = "hidden";
+        return () => { document.body.style.overflow = ""; };
+      }, []);*/
+
+      const Field = ({ k, label, type="text", placeholder, options }) => (
+        <div>
+          <label className="block text-xs font-600 text-gray-600 mb-1.5">{label}</label>
+          {options ? (
+            <select value={form[k]} onChange={ev => set(k, ev.target.value)}
+              className="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-gray-50 transition-all">
+              {options.map(o => <option key={o}>{o}</option>)}
+            </select>
+          ) : (
+            <input type={type} value={form[k]} onChange={ev => set(k, ev.target.value)}
+              placeholder={placeholder}
+              className={`w-full px-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-gray-50 transition-all ${errors[k] ? "border-red-300 bg-red-50" : "border-gray-200"}`} />
+          )}
+          {errors[k] && <p className="text-[10px] text-red-500 mt-1">{errors[k]}</p>}
+        </div>
+      );
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background:"rgba(15,23,42,0.45)", backdropFilter:"blur(4px)" }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg fade-in overflow-y-auto fade-in">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                  <Icon d={icons.orders} size={16} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-700 text-gray-800">Add New Order</h2>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Order {nextId} · Fill in the details below</p>
+                </div>
+              </div>
+              <button onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <Icon d={icons.x} size={16} />
+              </button>
+            </div>
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+  <label className="block text-xs font-600 text-gray-600 mb-1.5">
+    Customer
+  </label>
+
+  <select
+    value={form.customer}
+    onChange={e => set("customer", e.target.value)}
+    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 hover:border-blue-300 transition-all appearance-none cursor-pointer"
+  >
+    <option value="">Select Customer</option>
+
+    {customers.map(c => (
+      <option key={c.customer_id} value={c.customer_id}>
+        {c.first_name} {c.last_name}
+      </option>
+    ))}
+  </select>
+</div>
+                <div>
+  <label className="block text-xs font-600 text-gray-600 mb-1.5">
+    Product
+  </label>
+
+  <select
+    value={form.product}
+    onChange={e => set("product", e.target.value)}
+    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-gray-200 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 hover:border-blue-300 transition-all appearance-none cursor-pointer"
+  >
+    <option value="">Select Product</option>
+
+    {products.map(p => (
+      <option key={p.product_id} value={p.product_id}>
+        {p.product_name}
+      </option>
+    ))}
+  </select>
+</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Field k="qty"    label="Quantity" type="number" placeholder="1" />
+              </div>
+            </div>
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={onClose}
+                className="px-4 py-2.5 text-xs font-600 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSave}
+                className="px-5 py-2.5 text-xs font-600 text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm flex items-center gap-2">
+                <Icon d={icons.check} size={13} className="text-white" />
+                Save Order
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const Orders = () => {
+      const [orders, setOrders]       = useState([]);
+      const [search, setSearch]       = useState("");
+      const [filter, setFilter]       = useState("All");
+      const [showModal, setShowModal] = useState(false);
+      const [filterOpen, setFilterOpen] = useState(false);
+
+      useEffect(() => {
+    axios.get("http://localhost:5000/orders")
+        .then(res => {
+            setOrders(
+    res.data.map(o => ({
+        id: "ORD-" + String(o.order_id).padStart(4, "0"),
+        customer: "CUS-" + String(o.customer_id).padStart(4, "0"),
+        product: "PROD-" + String(o.product_id).padStart(4, "0"),
+        quantity: o.quantity,
+        amount: Number(o.amount || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" }),
+        status: "Completed",
+        date: new Date(o.order_date).toLocaleDateString()
+    }))
+);
+        })
+        .catch(err => console.log(err));
+}, []);
+
+      const STATUS_FILTERS = ["All", "Completed", "Processing", "Pending", "Cancelled"];
+
+      const filtered = orders.filter(o => {
+        const q = search.toLowerCase();
+        const matchSearch = !q ||
+          o.id.toLowerCase().includes(q)       ||
+          o.customer.toLowerCase().includes(q) ||
+          o.product.toLowerCase().includes(q);
+        const matchFilter = filter === "All" || o.status === filter;
+        return matchSearch && matchFilter;
+      });
+
+      const total      = orders.length;
+      const completed  = orders.filter(o => o.status === "Completed").length;
+      const pending    = orders.filter(o => o.status === "Pending" || o.status === "Processing").length;
+      const cancelled  = orders.filter(o => o.status === "Cancelled").length;
+
+      const nextId =
+orders.length > 0
+? `ORD-${String(parseInt(orders[0].id.replace("ORD-","")) + 1).padStart(4,"0")}`
+: "ORD-0001";
+
+    const handleAdd = form => {
+
+    const payload = {
+        customer_id: Number(form.customer),
+        product_id: Number(form.product),
+        quantity: Number(form.qty),
+        order_date: new Date().toISOString().split("T")[0]
+    };
+
+    if (!payload.customer_id || !payload.product_id || !payload.quantity) {
+        alert("Customer, product, or quantity is missing!");
+        return;
+    }
+
+    // Fetch product price
+    axios.get("http://localhost:5000/products")
+        .then(productRes => {
+
+            const selectedProduct = productRes.data.find(
+                p => Number(p.product_id) === payload.product_id
+            );
+
+            if (!selectedProduct) {
+                alert("Product not found!");
+                return;
+            }
+
+            // Calculate amount
+            const amount = Number(selectedProduct.price) * payload.quantity;
+
+            console.log("Product Price:", selectedProduct.price);
+            console.log("Quantity:", payload.quantity);
+            console.log("Calculated Amount:", amount);
+
+            // Save order
+            return axios.post("http://localhost:5000/orders", payload)
+                .then(() => axios.get("http://localhost:5000/orders"))
+                .then(orderRes => {
+
+                    setOrders(
+                        orderRes.data.map(o => {
+
+                            const product = productRes.data.find(
+                                p => Number(p.product_id) === Number(o.product_id)
+                            );
+
+                            const calculatedAmount = product
+                                ? Number(product.price) * Number(o.quantity)
+                                : 0;
+
+                            return {
+                                id: "ORD-" + String(o.order_id).padStart(4, "0"),
+                                customer: "CUS-" + String(o.customer_id).padStart(4, "0"),
+                                product: "PROD-" + String(o.product_id).padStart(4, "0"),
+                                quantity: o.quantity,
+                                amount: "₹" + calculatedAmount.toFixed(2),
+                                status: "Completed",
+                                date: new Date(o.order_date).toLocaleDateString()
+                            };
+                        })
+                    );
+
+                    alert("Order added successfully!");
+                    setShowModal(false);
+                });
+        })
+        .catch(err => {
+            console.log("Order error:", err.response?.data || err);
+            alert("Error adding order");
+        });
+};
+
+      const MiniStatCard = ({ label, value, color, icon }) => {
+        const map = {
+          blue:    { bg:"bg-blue-50/40",   icon:"bg-blue-600",    text:"text-blue-700"    },
+          emerald: { bg:"bg-emerald-50/40", icon:"bg-emerald-600", text:"text-emerald-700" },
+          amber:   { bg:"bg-amber-50/40",   icon:"bg-amber-500",   text:"text-amber-700"   },
+          red:     { bg:"bg-red-50/40",     icon:"bg-red-500",     text:"text-red-700"     },
+        };
+        const c = map[color];
+        return (
+          <div className={`bg-white rounded-2xl p-5 shadow-sm card-hover border border-white ${c.bg}`}>
+            <div className="flex items-start justify-between mb-3">
+              <div className={`w-10 h-10 rounded-xl ${c.icon} flex items-center justify-center shadow-md`}>
+                <Icon d={icons[icon]} size={17} className="text-white" />
+              </div>
+            </div>
+            <p className={`text-2xl font-700 ${c.text} mb-1`}>{value}</p>
+            <p className="text-sm text-gray-500 font-500">{label}</p>
+          </div>
+        );
+      };
+
+      return (
+        <div className="fade-in space-y-6">
+          {/* Page Header */}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-xl font-700 text-gray-800">Orders Management</h1>
+              <p className="text-sm text-gray-500 mt-0.5">Track, manage and fulfill all customer orders.</p>
+            </div>
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white text-xs font-600 px-4 py-2.5 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add Order
+            </button>
+          </div>
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <MiniStatCard label="Total Orders" value={total}     color="blue"    icon="orders"  />
+            <MiniStatCard label="Completed"    value={completed} color="emerald" icon="check"   />
+            <MiniStatCard label="Pending"      value={pending}   color="amber"   icon="clock"   />
+            <MiniStatCard label="Cancelled"    value={cancelled} color="red"     icon="x"       />
+          </div>
+
+          {/* Search + Filter Row */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Icon d={icons.search} size={14} className="text-gray-400" />
+              </div>
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search by order ID, customer or product…"
+                className="w-full pl-9 pr-4 py-2.5 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all shadow-sm" />
+            </div>
+
+            {/* Status Filter Dropdown */}
+            <div className="relative">
+              <button onClick={() => setFilterOpen(o => !o)}
+                className="flex items-center gap-2 px-4 py-2.5 text-xs font-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
+                <div className={`w-2 h-2 rounded-full ${filter === "All" ? "bg-gray-400" : ORDER_STATUS_STYLES[filter]?.dot || "bg-gray-400"}`} />
+                {filter}
+                <Icon d="M6 9l6 6 6-6" size={13} className="text-gray-400" />
+              </button>
+              {filterOpen && (
+                <div className="absolute right-0 top-11 bg-white rounded-2xl shadow-2xl border border-gray-100 z-30 overflow-hidden fade-in w-44">
+                  {STATUS_FILTERS.map(s => (
+                    <button key={s} onClick={() => { setFilter(s); setFilterOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left hover:bg-blue-50 transition-colors ${filter === s ? "bg-blue-50 text-blue-600 font-600" : "text-gray-700"}`}>
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${s === "All" ? "bg-gray-400" : ORDER_STATUS_STYLES[s]?.dot}`} />
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Orders Table */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+              <div>
+                <h2 className="text-sm font-600 text-gray-800">All Orders</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{filtered.length} order{filtered.length !== 1 ? "s" : ""} found</p>
+              </div>
+              {search || filter !== "All" ? (
+                <button onClick={() => { setSearch(""); setFilter("All"); }}
+                  className="text-xs text-blue-600 font-500 hover:text-blue-700 transition-colors flex items-center gap-1">
+                  <Icon d={icons.x} size={11} /> Clear filters
+                </button>
+              ) : null}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left">
+                    {["Order ID","Customer","Product","Qty","Amount","Status","Order Date"].map(h => (
+                      <th key={h} className="px-5 py-3 text-xs font-600 text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-5 py-12 text-center text-sm text-gray-400">
+                        No orders match your search.
+                      </td>
+                    </tr>
+                  ) : filtered.map((o, i) => (
+                    <tr key={i} className="border-t border-gray-50 hover:bg-blue-50/40 transition-colors cursor-pointer">
+                      <td className="px-5 py-3.5 text-xs font-600 text-blue-600 whitespace-nowrap">{o.id}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <Avatar name={o.customer} size={28} />
+                          <span className="text-xs text-gray-700 font-500 whitespace-nowrap">{o.customer}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-gray-600 max-w-[180px] truncate">{o.product}</td>
+                      <td className="px-5 py-3.5 text-xs text-gray-600 text-center">{o.quantity}</td>
+                      <td className="px-5 py-3.5 text-xs font-600 text-gray-800 whitespace-nowrap">{o.amount}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-500 whitespace-nowrap ${ORDER_STATUS_STYLES[o.status]?.badge}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${ORDER_STATUS_STYLES[o.status]?.dot}`} />
+                          {o.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-gray-400 whitespace-nowrap">{o.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {filtered.length > 0 && (
+              <div className="px-5 py-3 border-t border-gray-50 flex items-center justify-between">
+                <p className="text-xs text-gray-400">Showing {filtered.length} of {orders.length} orders</p>
+                <div className="flex items-center gap-1">
+                  {[...new Set(filtered.map(o => o.status))].map(s => (
+                    <span key={s} className={`text-[10px] px-2 py-0.5 rounded-full font-500 ${ORDER_STATUS_STYLES[s]?.badge}`}>{s}: {filtered.filter(o => o.status === s).length}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {showModal && <AddOrderModal onClose={() => setShowModal(false)} onSave={handleAdd} nextId={nextId} />}
+        </div>
+      );
+    };
+
+    // ── Generic placeholder pages ──────────────────────────────────────────────
+    const PlaceholderPage = ({ title, icon, desc }) => (
+      <div className="fade-in flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-5 shadow-inner">
+          <Icon d={icons[icon]} size={28} className="text-blue-500" />
+        </div>
+        <h1 className="text-xl font-700 text-gray-800 mb-2">{title}</h1>
+        <p className="text-sm text-gray-400 max-w-xs">{desc}</p>
+      </div>
+    );
+
+    // ── Sidebar ────────────────────────────────────────────────────────────────
+    const Sidebar = ({ active, setActive, collapsed }) => (
+      <aside className={`fixed top-0 left-0 h-screen z-30 flex flex-col transition-all duration-300 ease-in-out
+        bg-gradient-to-b from-[#1e40af] to-[#1e3a8a] shadow-2xl
+        ${collapsed ? "w-0 overflow-hidden" : "w-60"}`}>
+
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-5 h-16 border-b border-white/10 shrink-0">
+          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+            <Icon d={icons.trend} size={16} className="text-white" />
+          </div>
+          <span className="text-white font-700 text-sm leading-tight">Sales<br/>Analytics</span>
+        </div>
+
+        {/* Label */}
+        <div className="px-5 pt-5 pb-2">
+          <p className="text-[10px] font-600 uppercase tracking-widest text-white/40">Main Menu</p>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto sidebar-scrollbar px-3 pb-4 space-y-0.5">
+          {NAV.map(item => {
+            const isActive = active === item.id;
+            return (
+              <button key={item.id} onClick={() => setActive(item.id)}
+                className={`nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-500 transition-all duration-200
+                  ${isActive
+                    ? "bg-white text-blue-700 shadow-lg font-600"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"}`}>
+                <Icon d={icons[item.icon]} size={18}
+                  className={isActive ? "text-blue-600" : "text-white/70"} />
+                {item.label}
+                {isActive && <Icon d={icons.chevron} size={14} className="ml-auto text-blue-400" />}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* User card at bottom */}
+        <div className="px-3 pb-4 border-t border-white/10 pt-3">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <Avatar name="Admin User" size={32} />
+            <div className="min-w-0">
+              <p className="text-xs font-600 text-white truncate">Admin User</p>
+              <p className="text-[10px] text-white/50 truncate">admin@ecomm.in</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+
+    // ── Top Navbar ─────────────────────────────────────────────────────────────
+    const Navbar = ({ collapsed, setCollapsed, active }) => {
+      const [notifOpen, setNotifOpen] = useState(false);
+      const notifs = [
+        { text: "New order #ORD-7821 placed",   time: "2 min ago",  dot: "bg-blue-500"    },
+        { text: "Rahul Verma left a 5★ review", time: "18 min ago", dot: "bg-emerald-500" },
+        { text: "Stock low: Samsung QLED TV",   time: "1 hr ago",   dot: "bg-amber-500"   },
+      ];
+      return (
+        <header className={`fixed top-0 right-0 h-16 z-20 bg-white border-b border-gray-100 flex items-center px-5 gap-4 shadow-sm transition-all duration-300 ${collapsed ? "left-0" : "left-60"}`}>
+          {/* Hamburger */}
+          <button onClick={() => setCollapsed(c => !c)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
+            <Icon d={collapsed ? icons.menu : icons.x} size={18} />
+          </button>
+
+          {/* Title */}
+          <h1 className="text-sm font-700 text-gray-800 hidden sm:block truncate flex-1">
+            E-Commerce Sales Analytics System
+          </h1>
+          <div className="flex-1 sm:flex-none" />
+
+          {/* Search */}
+          <div className="relative hidden md:block">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <Icon d={icons.search} size={14} className="text-gray-400" />
+            </div>
+            <input type="text" placeholder="Search…"
+              className="pl-8 pr-4 py-2 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 w-48 transition-all" />
+          </div>
+
+          {/* Notification bell */}
+          <div className="relative">
+            <button onClick={() => setNotifOpen(o => !o)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-blue-50 transition-colors text-gray-500 relative">
+              <Icon d={icons.bell} size={18} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full pulse-dot" />
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 top-12 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden fade-in">
+                <div className="px-4 py-3 border-b border-gray-50">
+                  <p className="text-xs font-700 text-gray-800">Notifications</p>
+                </div>
+                {notifs.map((n, i) => (
+                  <div key={i} className="px-4 py-3 flex gap-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-50 last:border-0">
+                    <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.dot}`} />
+                    <div>
+                      <p className="text-xs text-gray-700">{n.text}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{n.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Avatar */}
+          <Avatar name="Admin User" size={34} />
+        </header>
+      );
+    };
+
+    // ── Payments Management Page ───────────────────────────────────────────────
+
+    const PAY_STATUS = {
+      Completed: { badge: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
+      Pending:   { badge: "bg-amber-100 text-amber-700",     dot: "bg-amber-500"   },
+      Failed:    { badge: "bg-red-100 text-red-600",         dot: "bg-red-500"     },
+    };
+
+    const METHOD_ICONS = {
+      "Credit Card": ["M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z","M1 10h22"],
+      "Debit Card":  ["M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z","M1 10h22"],
+      "UPI":         ["M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"],
+      "Net Banking": ["M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"],
+      "EMI":         ["M22 12h-4l-3 9L9 3l-3 9H2"],
+    };
+
+    const AddPaymentModal = ({ onClose, onSave, nextId }) => {
+      const STATUSES = ["Pending", "Completed", "Failed"];
+      const METHODS  = ["UPI", "Credit Card", "Debit Card", "Net Banking", "EMI"];
+      const [form, setForm] = useState({
+        orderId: "", amount: "", method: "UPI", status: "Pending",
+      });
+      const [errors, setErrors] = useState({});
+      const [orders, setOrders] = useState([]);
+
+      const set = (k, v) => {
+        setForm(f => ({ ...f, [k]: v }));
+        setErrors(e => { const n = { ...e }; delete n[k]; return n; });
+      };
+
+    const validate = () => {
+     const e = {};
+
+    if (!form.orderId) {
+        e.orderId = "Order ID is required";
+    }
+
+    return e;
+};
+
+ const handleSave = () => {
+    console.log("SAVE BUTTON CLICKED");
+    console.log("Payment form:", form);
+
+    const e = validate();
+
+    if (Object.keys(e).length > 0) {
+        setErrors(e);
+        return;
+    }
+
+    console.log("Calling onSave");
+    onSave(form);
+};
+
+      useEffect(() => {
+    axios.get("http://localhost:5000/orders")
+        .then(res => setOrders(res.data))
+        .catch(err => console.log(err));
+}, []);
+
+      const Field = ({ k, label, type = "text", placeholder, options }) => (
+        <div>
+          <label className="block text-xs font-600 text-gray-600 mb-1.5">{label}</label>
+          {options ? (
+            <select value={form[k]} onChange={ev => set(k, ev.target.value)}
+              className="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-gray-50 transition-all">
+              {options.map(o => <option key={o}>{o}</option>)}
+            </select>
+          ) : (
+            <input type={type} value={form[k]} onChange={ev => set(k, ev.target.value)}
+              placeholder={placeholder}
+              className={`w-full px-3 py-2.5 text-xs border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-gray-50 transition-all ${errors[k] ? "border-red-300 bg-red-50" : "border-gray-200"}`} />
+          )}
+          {errors[k] && <p className="text-[10px] text-red-500 mt-1">{errors[k]}</p>}
+        </div>
+      );
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+          style={{ background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)" }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto fade-in">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                  <Icon d={icons.payments} size={16} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-700 text-gray-800">Add New Payment</h2>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Record a new payment transaction</p>
+                </div>
+              </div>
+              <button onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <Icon d={icons.x} size={16} />
+              </button>
+            </div>
+
+           {/* Body */}
+<div className="px-6 py-5 space-y-4">
+
+  <div className="grid grid-cols-2 gap-4">
+
+    {/* Order Dropdown */}
+    <div>
+      <label className="block text-xs font-600 text-gray-600 mb-1.5">
+        Order
+      </label>
+
+      <select
+        value={form.orderId}
+        onChange={e => set("orderId", e.target.value)}
+        className="w-full px-3 py-2.5 text-xs border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
+      >
+        <option value="">Select Order</option>
+
+        {orders.map(order => (
+          <option
+            key={order.order_id}
+            value={order.order_id}
+          >
+            ORD-{String(order.order_id).padStart(4, "0")}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    <Field
+      k="method"
+      label="Payment Method"
+      options={METHODS}
+    />
+
+  </div>
+
+  <div className="grid grid-cols-2 gap-4">
+
+    <Field
+      k="status"
+      label="Status"
+      options={STATUSES}
+    />
+
+  </div>
+
+</div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={onClose}
+                className="px-4 py-2.5 text-xs font-600 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSave}
+                className="px-5 py-2.5 text-xs font-600 text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm flex items-center gap-2">
+                <Icon d={icons.check} size={13} className="text-white" />
+                Save Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const Payments = () => {
+      const [payments, setPayments] = useState([]);
+      const [search, setSearch]     = useState("");
+      const [method, setMethod]     = useState("All");
+      const [showModal, setShowModal] = useState(false);
+      const [methodOpen, setMethodOpen] = useState(false);
+
+      useEffect(() => {
+    axios.get("http://localhost:5000/payments")
+        .then(res => {
+            setPayments(
+    res.data.map(p => ({
+        id: "PAY-" + String(p.payment_id).padStart(4, "0"),
+        orderId: "ORD-" + String(p.order_id).padStart(4, "0"),
+        customer: "Customer " + p.order_id,
+        amount: "₹" + Number(p.amount).toLocaleString("en-IN"),
+        method: p.payment_method,
+        status: p.payment_status,
+        date: p.payment_date ? new Date(p.payment_date).toLocaleDateString("en-GB"): "-"
+    }))
+);
+        })
+        .catch(err => console.log(err));
+}, []);
+
+      const METHODS = ["All", "UPI", "Credit Card", "Debit Card", "Net Banking", "EMI"];
+
+      const filtered = payments.filter(p => {
+        const q = search.toLowerCase();
+        const matchSearch = !q ||
+          p.id.toLowerCase().includes(q) ||
+          p.orderId.toLowerCase().includes(q) ||
+          p.customer.toLowerCase().includes(q) ||
+          p.method.toLowerCase().includes(q) ||
+          p.status.toLowerCase().includes(q);
+        const matchMethod = method === "All" || p.method === method;
+        return matchSearch && matchMethod;
+      });
+
+      const totalRevenue   = payments.filter(p => p.status === "Completed")
+        .reduce((s, p) => s + parseInt(p.amount.replace(/[₹,]/g, "")), 0);
+      const completedCount = payments.filter(p => p.status === "Completed").length;
+      const pendingCount   = payments.filter(p => p.status === "Pending").length;
+      const failedCount    = payments.filter(p => p.status === "Failed").length;
+
+      const fmt = n => n >= 100000
+        ? "₹" + (n / 100000).toFixed(1) + "L"
+        : "₹" + n.toLocaleString("en-IN");
+
+      const handleAdd = (form) => {
+
+    console.log("Payment form data:", form);
+
+    const payload = {
+        order_id: Number(String(form.orderId).replace("ORD-", "")),
+        payment_method: form.method,
+        payment_status: form.status,
+        payment_date: new Date().toISOString().split("T")[0]
+    };
+
+    console.log("Payment payload:", payload);
+
+    axios.post("http://localhost:5000/payments", payload)
+
+        .then(() => axios.get("http://localhost:5000/payments"))
+
+        .then((res) => {
+
+            setPayments(
+                res.data.map(p => ({
+                    id: "PAY-" + String(p.payment_id).padStart(4, "0"),
+                    orderId: "ORD-" + String(p.order_id).padStart(4, "0"),
+                    customer: "Customer " + p.order_id,
+                    amount: "₹" + Number(p.amount).toLocaleString("en-IN"),
+                    method: p.payment_method,
+                    status: p.payment_status,
+                    date: new Date(p.payment_date).toLocaleDateString("en-GB")
+                }))
+            );
+
+            setShowModal(false);
+
+        })
+
+        .catch(err => {
+            console.log("Payment error:", err.response?.data || err.message);
+            alert("Payment Insert Failed");
+        });
+};
+
+      return (
+        <div className="fade-in space-y-6">
+
+          {/* ── Page Header ── */}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-xl font-700 text-gray-800">Payments Management</h1>
+              <p className="text-sm text-gray-500 mt-0.5">Track transactions, payment methods, and revenue.</p>
+            </div>
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white text-xs font-600 px-4 py-2.5 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add Payment
+            </button>
+          </div>
+
+          {/* ── Stat Cards ── */}
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+
+            {/* Total Revenue */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-blue-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.dollar} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />14.2%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{fmt(totalRevenue)}</p>
+              <p className="text-sm text-gray-500 font-500">Total Revenue</p>
+              <p className="text-xs text-gray-400 mt-1">From completed payments</p>
+            </div>
+
+            {/* Completed */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-emerald-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-emerald-600 flex items-center justify-center shadow-md">
+                  <Icon d={icons.check} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <Icon d={icons.arrowUp} size={11} />8.6%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{completedCount}</p>
+              <p className="text-sm text-gray-500 font-500">Completed Payments</p>
+              <p className="text-xs text-gray-400 mt-1">Successfully processed</p>
+            </div>
+
+            {/* Pending */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-amber-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center shadow-md">
+                  <Icon d={icons.clock} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-red-100 text-red-600 flex items-center gap-1">
+                  <Icon d={icons.arrowDown} size={11} />3.1%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{pendingCount}</p>
+              <p className="text-sm text-gray-500 font-500">Pending Payments</p>
+              <p className="text-xs text-gray-400 mt-1">Awaiting confirmation</p>
+            </div>
+
+            {/* Failed */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-white bg-red-50/30">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-red-500 flex items-center justify-center shadow-md">
+                  <Icon d={icons.x} size={18} className="text-white" />
+                </div>
+                <span className="text-xs font-600 px-2 py-1 rounded-full bg-red-100 text-red-600 flex items-center gap-1">
+                  <Icon d={icons.arrowDown} size={11} />5.4%
+                </span>
+              </div>
+              <p className="text-2xl font-700 text-gray-800 mb-1">{failedCount}</p>
+              <p className="text-sm text-gray-500 font-500">Failed Payments</p>
+              <p className="text-xs text-gray-400 mt-1">Requires attention</p>
+            </div>
+          </div>
+
+          {/* ── Table Card ── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+
+            {/* Toolbar */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50 flex-wrap gap-y-3">
+
+              {/* Search */}
+              <div className="relative flex-1 min-w-[200px]">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Icon d={icons.search} size={14} className="text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by ID, customer, method…"
+                  className="w-full pl-9 pr-4 py-2 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all"
+                />
+              </div>
+
+              {/* Method Filter */}
+              <div className="relative">
+                <button onClick={() => setMethodOpen(o => !o)}
+                  className="flex items-center gap-2 px-3.5 py-2 text-xs font-500 text-gray-600 bg-gray-50 border border-gray-100 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all whitespace-nowrap">
+                  <Icon d={icons.payments} size={13} className="text-gray-400" />
+                  {method === "All" ? "All Methods" : method}
+                  <Icon d={icons.chevron} size={12} className={`text-gray-400 transition-transform ${methodOpen ? "rotate-90" : ""}`} />
+                </button>
+                {methodOpen && (
+                  <div className="absolute right-0 top-10 bg-white rounded-xl shadow-xl border border-gray-100 z-20 overflow-hidden fade-in min-w-[150px]">
+                    {METHODS.map(m => (
+                      <button key={m}
+                        onClick={() => { setMethod(m); setMethodOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-xs font-500 transition-colors hover:bg-blue-50
+                          ${method === m ? "text-blue-600 bg-blue-50/60 font-600" : "text-gray-600"}`}>
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left">
+                    {["Payment ID", "Order ID", "Customer", "Amount", "Method", "Status", "Payment Date"].map(h => (
+                      <th key={h} className="px-5 py-3 text-xs font-600 text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-12 text-center text-xs text-gray-400">
+                        No payments match your search.
+                      </td>
+                    </tr>
+                  ) : filtered.map((p, i) => (
+                    <tr key={p.id}
+                      className={`border-t border-gray-50 hover:bg-blue-50/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-gray-50/30" : ""}`}>
+
+                      {/* Payment ID */}
+                      <td className="px-5 py-3.5 text-xs font-600 text-blue-600 whitespace-nowrap">{p.id}</td>
+
+                      {/* Order ID */}
+                      <td className="px-5 py-3.5 text-xs font-500 text-indigo-600 whitespace-nowrap">{p.orderId}</td>
+
+                      {/* Customer */}
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <Avatar name={p.customer} size={28} />
+                          <span className="text-xs text-gray-700 font-500 whitespace-nowrap">{p.customer}</span>
+                        </div>
+                      </td>
+
+                      {/* Amount */}
+                      <td className="px-5 py-3.5 text-xs font-700 text-gray-800 whitespace-nowrap">{p.amount}</td>
+
+                      {/* Method */}
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                            <Icon d={METHOD_ICONS[p.method] || icons.payments} size={12} className="text-gray-500" />
+                          </div>
+                          <span className="text-xs text-gray-600 whitespace-nowrap">{p.method}</span>
+                        </div>
+                      </td>
+
+                      {/* Status badge */}
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-500 ${PAY_STATUS[p.status]?.badge}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${PAY_STATUS[p.status]?.dot}`} />
+                          {p.status}
+                        </span>
+                      </td>
+
+                      {/* Date */}
+                      <td className="px-5 py-3.5 text-xs text-gray-400 whitespace-nowrap">{p.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table Footer */}
+            <div className="px-5 py-3 border-t border-gray-50 flex items-center justify-between flex-wrap gap-2">
+              <p className="text-xs text-gray-400">Showing {filtered.length} of {payments.length} payments</p>
+              <div className="flex gap-1">
+                {[1, 2, 3].map(n => (
+                  <button key={n} className={`w-7 h-7 rounded-lg text-xs font-600 transition-colors
+                    ${n === 1 ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-100"}`}>{n}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Modal ── */}
+          {showModal && (
+            <AddPaymentModal
+              onClose={() => setShowModal(false)}
+              onSave={handleAdd}
+              nextId={`PAY-${String(payments.length + 3001).slice(-4)}`}
+            />
+          )}
+        </div>
+      );
+    };
+
+    // ── App Shell ──────────────────────────────────────────────────────────────
+    const App = () => {
+      const [active, setActive] = useState("dashboard");
+      const [collapsed, setCollapsed] = useState(false);
+
+      const pages = {
+        dashboard:  <Dashboard />,
+        customers:  <Customers />,
+        products:   <Products />,
+        categories: <Categories />,
+        orders:     <Orders />,
+        payments:   <Payments />,
+      };
+
+      return (
+        <div className="min-h-screen bg-[#f0f4ff]">
+          <Sidebar active={active} setActive={setActive} collapsed={collapsed} />
+          <Navbar collapsed={collapsed} setCollapsed={setCollapsed} active={active} />
+          <main className={`pt-16 transition-all duration-300 ${collapsed ? "ml-0" : "ml-60"}`}>
+            <div className="p-6 max-w-7xl mx-auto">
+              {pages[active]}
+            </div>
+          </main>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

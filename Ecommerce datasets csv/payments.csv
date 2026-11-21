@@ -1,0 +1,6 @@
+payment_id,order_id,payment_method,payment_status,amount,payment_date
+1,1,UPI,Completed,79999.00,2024-05-01
+2,2,"Credit Card",Completed,10000.00,2024-05-02
+3,3,"Debit Card",Completed,1200.00,2024-05-03
+4,4,UPI,Completed,45000.00,2024-05-05
+5,5,"Cash on Delivery",Pending,30000.00,2024-05-06
